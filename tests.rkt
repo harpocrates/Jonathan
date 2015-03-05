@@ -1,7 +1,7 @@
 #lang racket
 (require test-engine/racket-tests "symbolic-manipulation-program.rkt")
 
-;; Boolean algebra - problems sampled from 'Discrete Mathemtics with Applications' [Epp] 7th ed.
+;; Boolean algebra - problems sampled from 'Di screte Mathemtics with Applications' [Epp] 7th ed.
 (define (bool-simplify expression)
   (manipulate boolean-algebra expression simplify 50))
 
