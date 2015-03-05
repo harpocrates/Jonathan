@@ -2,9 +2,7 @@
 (require data/heap
          racket/set)
 
-(provide next-expressions manipulate
-         simplify expand
-         group-algebra boolean-algebra)
+(provide next-expressions manipulate)
 
 ;; Given a template, we check if target fits this template.
 ;; `variables` is a list of symbols in the `template` expression that are variables (hence do not
@@ -57,29 +55,36 @@
 ;; Given a set of transform rules (`transform-templates`) and a target expression (`target`),
 ;; generate the possible derived expressions. The optional argument `toplevel` provides the
 ;; option of matching the transform rules only at the top level (think about how equivalence vs.
-;; inference rules are applied)
-(define (next-expressions transform-templates target [toplevel #f])
+;; inference rules are applied).
+;;
+;; `transform-functions` provides a way of extending the matching engine. These functions must
+;; consume an expression and return a list of possible mutated expressions.
+(define (next-expressions transform-templates target [toplevel #f] [transform-functions '()])
   (local [(define (next-expressions-toplevel transform-templates target)
-          ; performs toplevel replacements based on transform-templates.
-          ; Ex: Given only a commutativity rule (a b) :: (a b) -> (b a)
-          ;     (a (b c)) produces ((b c) a) but not (a (c b)).
-            (if (empty? transform-templates)
-                '()
-                (local [(define variables (first transform-templates))
-                        (define template  (second transform-templates))
-                        (define remaining-templates
-                          (rest (rest (rest transform-templates))))
-                        (define try
-                          (match-template variables (make-hash) template target))]
-                  (if (boolean? try)
-                    (next-expressions-toplevel remaining-templates target)
-                    (cons
-                      (splice-onto-template
-                            variables
-                            try
-                            (third transform-templates))
-                      (next-expressions-toplevel remaining-templates target))))))
-          (define (next-expressions-non-toplevel transform-templates target)
+          (append
+            ; performs toplevel replacements based on `transform-functions`
+            (apply append (map (lambda (f) (f target)) transform-functions))
+            ; performs toplevel replacements based on `transform-templates`.
+            ; Ex: Given only a commutativity rule (a b) :: (a b) -> (b a)
+            ;     (a (b c)) produces ((b c) a) but not (a (c b)).
+            (let loop ([transform-templates transform-templates])
+              (if (empty? transform-templates)
+                  '()
+                  (local [(define variables (first transform-templates))
+                          (define template  (second transform-templates))
+                          (define remaining-templates
+                            (rest (rest (rest transform-templates))))
+                          (define try
+                            (match-template variables (make-hash) template target))]
+                    (if (boolean? try)
+                      (loop remaining-templates)
+                      (cons
+                        (splice-onto-template
+                              variables
+                              try
+                              (third transform-templates))
+                        (loop remaining-templates))))))))
+            (define (next-expressions-non-toplevel transform-templates target)
           ; performs all non-toplevel replacements based on transform-templates
           ; Ex: Given only a commutativity rule (a b) :: (a b) -> (b a)
           ;     ((a (b c)) d) produces (((b c) a) d) and ((a (c b)) d) but not (d (a (b c))).
@@ -88,7 +93,7 @@
                 (append
                   (map
                     (lambda (x) (cons x  (rest target)))
-                    (next-expressions transform-templates (first target)))
+                    (next-expressions transform-templates (first target) #f transform-functions))
                   (map
                     (lambda (x) (cons (first target) x))
                     (next-expressions-non-toplevel transform-templates (rest target))))))]
@@ -103,16 +108,17 @@
 
 ;; Scoring function meant to minimize size and depth of expression
 (define (simplify target)
-  (if (list? target) (+ 1 (foldl + 0 (map simplify target))) 1))
-;; Scoring function meant to maximize size and depth of expression
-(define (expand target)
-  (- (simplify target)))
+  (if (list? target)
+      (+ 1 (apply + (map simplify target)))
+      1))
 
 ;; Applies the transformation rules (`transform-rules`) to a `source` expression.
-;;   * `scoring`:       lambda returning number given an expression. `manipulate` minimizes this;
-;;   * `cutoff`:        number representing the maximum number of iterations;
-;;   * `toplevel`: flag allowing transform-rules to be applied only at the top level.
-(define (manipulate transform-rules source [scoring simplify] [cutoff 10] [toplevel #f] [print #f])
+;;   * `scoring`:              returns a number given an expression. `manipulate` minimizes this;
+;;   * `cutoff`:               number representing the maximum number of iterations;
+;;   * `transform-functions`:  list of functions that complement transform-rules. Each function
+;;                             in the list consumes an expression and outputs a list of mutants.
+;;   * `toplevel`:             flag allowing transform-rules to be applied only at the top level.
+(define (manipulate transform-rules source scoring cutoff [transform-functions '()] [toplevel #f] [print #f])
   (local [(define visited  (set source)) ; keeps track of expressions already processed (set)
           (define to-visit               ; track of expressions to be processed (priority queue)
             (make-heap (lambda (x y) (<= (second x) (second y)))))
@@ -143,7 +149,7 @@
                   (define next-expr   ; get new next expressions accessible from top
                     (filter
                       (lambda (e) (not (set-member? visited e)))
-                      (next-expressions transform-rules top toplevel)))]
+                      (next-expressions transform-rules top toplevel transform-functions)))]
 
             ; update best scores
             (when (< (scoring top) best-score)
@@ -159,58 +165,3 @@
 
             ; loop
             (loop (- n 1)))))))
-
-
-;; Sample transform rules
-(define group-algebra '(
-  ; since only one operation is defined, we can omit the `*`
-  (a b)     (a b)         (b a)        ; commutativity
-  (a b c)   ((a b) c)     (a (b c))    ; associativity
-  (a b c)   (a (b c))     ((a b) c)    ; associativity
-  (a)       (1 a)         a            ; identity
-  (a)       ((~ a) a)     1            ; inverse element
-  (a b)     (~ (a b))     ((~b) (~ a)) ;
-  (a b)     ((~b) (~ a))  (~ (a b))    ;
-  (a)       (~ (~ a))     a            ; double negative
-))
-
-(define boolean-algebra '(
-  ; associativity
-  (a b c) (^ a (^ b c))        (^ (^ a b) c)
-  (a b c) (^ (^ a b) c)        (^ a (^ b c))
-  (a b c) (v a (v b c))        (v (v a b) c)
-  (a b c) (v (v a b) c)        (v a (v b c))
-  ; commutativity
-  (a b)   (^ a b)              (^ b a)
-  (a b)   (v a b)              (v b a)
-  ; distributivity
-  (a b c) (^ a (v b c))        (v (^ a b) (^ a c))
-  (a b c) (^ (v a b) (v a c))  (v a (^ b c))
-  (a b c) (v a (^ b c))        (^ (v a b) (v a c))
-  (a b c) (v (^ a b) (^ a c))  (^ a (v b c))
-  ; identity
-  (a)     (v a #f)             a
-  (a)     (^ a #t)             a
-  ; annihilator
-  (a)     (v a #t)             #t
-  (a)     (^ a #f)             #f
-  ; idempotence
-  (a)     (v a a)              a
-  (a)     (^ a a)              a
-  ; absorption
-  (a b)   (^ a (v a b))        a
-  (a b)   (v a (^ a b))        a
-  ; complement
-  (a)     (v a (~ a))          #t
-  (a)     (^ a (~ a))          #f
-  ; double negative
-  (a)     (~ (~ a))            a
-  ; deMorgan's
-  (a b)   (v (~ a) (~ b))      (~ (^ a b))
-  (a b)   (~ (v a b))          (^ (~ a) (~ b))
-  (a b)   (^ (~ a) (~ b))      (~ (v a b))
-  (a b)   (~ (^ a b))          (v (~ a) (~ b))
-  ; negations of #f and #t
-  ()      (~ #f)               #t
-  ()      (~ #t)               #f
-))
