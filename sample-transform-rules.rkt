@@ -5,7 +5,8 @@
          numbers)
 
 ;; Group algebra rules. Since only one operation is defined, we can omit the `*`.
-(define group-algebra '(
+(define group-algebra 
+  '(
   (a b)     (a b)         (b a)        ; commutativity
   (a b c)   ((a b) c)     (a (b c))    ; associativity
   (a b c)   (a (b c))     ((a b) c)    ; associativity
@@ -14,11 +15,13 @@
   (a b)     (~ (a b))     ((~b) (~ a)) ;
   (a b)     ((~b) (~ a))  (~ (a b))    ;
   (a)       (~ (~ a))     a            ; double negative
-))
+  )
+)
 
 ;; Boolean algebra rules. Since the manipulation is purely symbolic, the expressions do not have to
 ;; be valid racket forms - allowing us to define the infix version of these rules.
-(define boolean '(
+(define boolean
+  '(
   ; associativity
   (a b c) (^ a (^ b c))        (^ (^ a b) c)
   (a b c) (^ (^ a b) c)        (^ a (^ b c))
@@ -57,8 +60,10 @@
   ; negations of #f and #t
   ()      (~ #f)               #t
   ()      (~ #t)               #f
-))
-(define boolean-infix '(
+  )
+)
+(define boolean-infix 
+  '(
   ; associativity
   (a b c) (a ^ (b ^ c))        ((a ^ b) ^ c)
   (a b c) ((a ^ b) ^ c)        (a ^ (b ^ c))
@@ -97,16 +102,21 @@
   ; negations of #f and #t
   ()      (~ #f)               #t
   ()      (~ #t)               #f
-))
-(define boolean-derived-operations '(
+  )
+)
+(define boolean-derived-operations 
+  '(
   (a b)   (-> a b)        (v (~ a) b)              ; conditional
   (a b)   (<-> a b)       (^ (v a b) (~ (^ a b)))  ; biconditional
   (a b)   (+ a b)         (v (v a b) c)            ; exclusive or
-))
+  )
+)
 
 ;; General numeric algebra rules. Ultimately to be used in conjunction with symbolic
 ;; differentiation. (To include simplifications concerning logarithms and exponents.)
-(define numbers '(
+(define numbers 
+  '(
+  ;; Multiplication and Addition
   ; associativity
   (a b c) (* a (* b c))        (* (* a b) c)
   (a b c) (* (* a b) c)        (* a (* b c))
@@ -118,11 +128,42 @@
   ; distributivity
   (a b c) (* a (+ b c))        (+ (* a b) (* a c))
   (a b c) (* (+ a b) (+ a c))  (+ a (* b c))
-
-  (a)       (+ a a)        (* 2 a)
-  (a b)     (+ a (* b a))  (* a (+ b 1))
+  ; (heuristics)
+  (a)       (+ a a)            (* 2 a)
+  (a b)     (+ a (* b a))      (* a (+ b 1))
   ; identity
-  (a)       (+ a 0)        a
-  (a)       (* a 1)        a
-))
+  (a)       (+ a 0)            a
+  (a)       (* a 1)            a
+  (a)       (* a 0)            0
 
+  ;; Division
+  (a b c)   (* a (/ b c))      (* b (/ a c))
+  (a b c)   (* a (/ b c))      (/ (* a b) c)
+  (a b c)   (/ (* a b) c)      (* a (/ b c))
+  (a b c)   (/ a (/ b c))      (/ (* a c) b)
+  (a b c)   (/ (* a c) b)      (/ a (/ b c))
+  ; identity
+  (a)       (/ 0 a)            0
+  (a)       (/ a 1)            a
+  (a)       (/ a a)            1
+
+  ;; Logarithm and Exponentiation
+  ; exponents
+  (a b c)   (* (^ a b) (^ a c)) (^ a (+ b c))
+  (a b c)   (^ (^ a b) c)       (^ a (* b c))
+  (a b c)   (* (^ a c) (^ b c)) (^ (* a b) c)
+  ; logarithms
+  (a b)     (+ (log a) (log b)) (log (* a b))
+  (a b)     (- (log a) (log b)) (log (/ a b))
+  (a b)     (log a b)           (/ (log a) (log b))
+  (a b)     (/ (log a) (log b)) (log a b)
+  (a b)     (log (^ a b))       (* b (log a))
+  (a b)     (* b (log a))       (log (^ a b))
+  ; (heuristics)
+  (a b)     (* a (^ a b))       (^ a (+ 1 b))
+  (a b)     (/ (^ a b) a)       (^ a (- b 1))
+  ; identity
+  ()        (log e)            1
+  ()        (log 1)            0
+  )
+)

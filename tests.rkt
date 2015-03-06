@@ -2,7 +2,8 @@
 (require test-engine/racket-tests
          "symbolic-manipulation-program.rkt"
          "sample-transform-rules.rkt"
-         "sample-scoring-functions.rkt")
+         "sample-scoring-functions.rkt"
+         "differentiation.rkt")
 
 ;; Boolean algebra - problems sampled from 'Discrete Mathemtics with Applications' [Epp] 7th ed.
 
@@ -26,13 +27,12 @@
 
 ;; General number simplification.
 (define (transform-function expression)
-  (if (and (pair? expression) (= (length expression) 3))
-      (local [(define op (first expression))
-              (define f  (second expression))
-              (define s  (third expression))]
-        (cond [(and (equal? op '+) (number? f) (number? s)) (list (+ f s))]
-              [(and (equal? op '*) (number? f) (number? s)) (list (* f s))]
-              [else '()]))
+  (if (and (pair? expression)
+           (= (length expression) 3)
+           (member (first expression) '(+ * / -))
+           (number? (second expression))
+           (number? (third expression)))
+      (list (eval expression (make-base-namespace)))
       '()))
 
 (define (num-simplify expression)
@@ -44,4 +44,15 @@
     (list transform-function)))
 
 ; (num-simplify '(+ (* a (+ 0 a)) (+ a a)))
+
+(differentiate '(+ (* 6 x) (^ x 8)) 'x)
+(num-simplify (differentiate '(+ (* 6 x) (^ x 8)) 'x))
+
+(differentiate '(^ e x) 'x)
+(num-simplify (differentiate '(^ e x) 'x))
+
+; (differentiate '(y (* 2 x) (^ e x) 9) 'x)
+; (differentiate '(y (* 2 x)) 'x)
+(differentiate (differentiate '(y (* 2 x)) 'x) 'x)
+(num-simplify (differentiate (differentiate '(y (* 2 x)) 'x) 'x))
 (test)
