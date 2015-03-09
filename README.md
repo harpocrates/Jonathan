@@ -1,5 +1,5 @@
 # Jonathan
-Jonathan is a symbolic manipulation program. Here is a rough idea of how he works.
+Jonathan is a symbolic computation program. Here is a rough idea of how he works for a basic example.
 
   * Jonathan begins by accepting the following input:
       1. A list of transform rules. For example, a valid transform rule for associativity of `and` is
@@ -22,7 +22,7 @@ Jonathan is a symbolic manipulation program. Here is a rough idea of how he work
             1))
       ```
       
-      which essentially penalizes every extra symbol, as well as extra parentheses.
+      which essentially penalizes for every extra symbol, as well as extra parentheses.
   * Using these inputs, Jonathan checks available mutations of promising expressions, prioritizing expressions
     with already low scores. This is done by way of a priority queue. Expressions that are visited are added to
     a hash set, so as to avoid revisiting them multiple times.
