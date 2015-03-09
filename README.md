@@ -42,8 +42,8 @@ Using the preset `boolean` transform rules from `sample-transform-rules.rkt` def
 In the `test.rkt` file, Jonathan also differentiates and simplifies expressions. For example, 
 
 ```racket
-(d/dx '(* x (sin (log (* 5 x)))))
+(d/dx (* x (sin (log (* 5 x)))))
 ```
 
-is manipulated to `(+ (sin (log (* 5 x))) (cos (log (* 5 x))))`.
+is manipulated to `'(+ (sin (log (* 5 x))) (cos (log (* 5 x))))`.
 
