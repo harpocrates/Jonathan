@@ -28,8 +28,7 @@ Jonathan is a symbolic manipulation program. Here is a rough idea of how he work
     a hash set, so as to avoid revisiting them multiple times.
 
 ### Example
-Using the preset `boolean-algebra` transform rules defined and the `simplify` scoring function above, we can
-simplify boolean algebra expressions.
+Using the preset `boolean` transform rules from `sample-transform-rules.rkt` defined and the `simplify` scoring function above (and also found in `sample-scoring-functions.rkt`) we can simplify boolean algebra expressions.
 
 ```racket
 (define (bool-simplify expression)
@@ -39,4 +38,12 @@ simplify boolean algebra expressions.
 (bool-simplify '(v (~ (v (^ (~ p) q) (^ (~ p) (~ q)))) (^ p q))) ; ===> 'p
 (bool-simplify '(v (^ p q) (v (~ p) (^ p (~ q)))))               ; ===> #t
 ```
+
+In the `test.rkt` file, Jonathan also differentiates and simplifies expressions. For example, 
+
+```racket
+(d/dx '(* x (sin (log (* 5 x)))))
+```
+
+is manipulated to `(+ (sin (log (* 5 x))) (cos (log (* 5 x))))`.
 
