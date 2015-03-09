@@ -126,7 +126,7 @@
           (define best-score (scoring source))   ; keeps track of the best expression's score
           (define o (current-output-port))]
 
-    (heap-add! to-visit (list source (scoring source))) ; add the source point
+    (heap-add! to-visit (list best best-score)) ; add the source point
     (when print (fprintf o "Starting...\nSource:   [~a]   ~a\n" best-score best))
 
     ; loop until `cutoff` is reached or there are no more expressions waiting to be processed.
@@ -142,18 +142,18 @@
             (when print (fprintf o (if (= n 0) "Cutoff reached.\n" "Cases exhausted.\n")))
             best)
 
-          (local [(define top         ; get minimum element from `to-visit`
-                    (begin0
-                      (first (heap-min to-visit))
-                      (heap-remove-min! to-visit)))
+          (local [(define top (first (heap-min to-visit)))        ; minimum element of `to-visit`
+                  (define top-score (second (heap-min to-visit))) ; minimum element's score
                   (define next-expr   ; get new next expressions accessible from top
                     (filter
                       (lambda (e) (not (set-member? visited e)))
                       (next-expressions transform-rules top toplevel transform-functions)))]
+            (heap-remove-min! to-visit) ; remove minimum item from `to-visit`
+            ; (fprintf o "   Top: ~a\n" top)
 
             ; update best scores
-            (when (< (scoring top) best-score)
-              (set!-values (best best-score) (values top (scoring top)))
+            (when (< top-score best-score)
+              (set!-values (best best-score) (values top top-score))
               (when print (fprintf o "New best: [~a]   ~a\n" best-score best)))
 
             ; add new expressions to `visited` and `to-visit`
